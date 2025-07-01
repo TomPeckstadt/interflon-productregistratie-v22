@@ -952,9 +952,6 @@ export default function ProductRegistrationApp() {
           if (supabase) {
             try {
               await supabase.from("user_badges").delete().eq("user_name", originalUser)
-              console.log("🗑️ Badge removed for user:", originalUser)
-              setImportMessage("✅ Gebruiker aangepast en badge verwijderd!")
-              setTimeout(() => setImportMessage(""), 3000)
             } catch (err) {
               console.error("Error removing badge:", err)
             }
@@ -1339,39 +1336,53 @@ export default function ProductRegistrationApp() {
   }
 
   const generateQRCode = async (product: Product) => {
-    // Generate QR code in the original format like "IFLS001", "IFFL002", etc.
-    // Based on product name and a sequential number or unique identifier
-
-    // Extract first letters from product name for prefix
+    // Generate QR code in the format like "INTFLMK_05468"
+    // Extract meaningful letters from product name
     const words = product.name.split(" ")
     let prefix = ""
 
-    // Create prefix from first letters of significant words
+    // Create prefix from first letters of significant words, skip common words
+    const skipWords = ["spray", "ml", "gr", "kit", "lube", "super", "clean", "food", "foam", "the", "and", "of", "for"]
+
     for (const word of words) {
-      if (word.length > 2 && !["spray", "ml", "gr", "kit"].includes(word.toLowerCase())) {
-        prefix += word.charAt(0).toUpperCase()
+      if (word.length > 2 && !skipWords.includes(word.toLowerCase())) {
+        // Take first 2-3 letters from significant words
+        if (word.length >= 6) {
+          prefix += word.substring(0, 3).toUpperCase()
+        } else {
+          prefix += word.substring(0, 2).toUpperCase()
+        }
       }
     }
 
-    // If prefix is too short, use first 2-3 characters of product name
-    if (prefix.length < 2) {
-      prefix = product.name.replace(/\s+/g, "").substring(0, 3).toUpperCase()
+    // If prefix is too short, use first letters of all words
+    if (prefix.length < 4) {
+      prefix = product.name
+        .split(" ")
+        .map((word) => word.charAt(0).toUpperCase())
+        .join("")
+        .substring(0, 6)
     }
 
-    // Limit prefix to 4 characters max
-    if (prefix.length > 4) {
-      prefix = prefix.substring(0, 4)
+    // Limit prefix to 6-8 characters max for readability
+    if (prefix.length > 8) {
+      prefix = prefix.substring(0, 8)
     }
 
-    // Generate a 3-digit number based on existing products to avoid duplicates
-    let number = 1
-    let newQrCode = ""
+    // Generate a 5-digit number based on timestamp to avoid duplicates
+    const timestamp = Date.now()
+    const randomPart = timestamp.toString().slice(-5)
 
-    do {
-      const paddedNumber = number.toString().padStart(3, "0")
-      newQrCode = `${prefix}${paddedNumber}`
-      number++
-    } while (products.some((p) => p.qrcode === newQrCode) && number < 1000)
+    // Create final QR code in format: PREFIX_NNNNN
+    let newQrCode = `${prefix}_${randomPart}`
+
+    // Ensure uniqueness - if exists, increment until unique
+    let counter = 1
+    while (products.some((p) => p.qrcode === newQrCode) && counter < 100) {
+      const newRandomPart = (Number.parseInt(randomPart) + counter).toString().padStart(5, "0")
+      newQrCode = `${prefix}_${newRandomPart}`
+      counter++
+    }
 
     const updateData = {
       name: product.name,
