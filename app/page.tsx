@@ -160,6 +160,7 @@ export default function ProductRegistrationApp() {
   const [productSearchQuery, setProductSearchQuery] = useState("")
   const [showProductDropdown, setShowProductDropdown] = useState(false)
   const productSelectorRef = useRef<HTMLDivElement>(null)
+  const manualInputRef = useRef<HTMLInputElement>(null)
   const [userSearchQuery, setUserSearchQuery] = useState("")
 
   // QR Scanner states
