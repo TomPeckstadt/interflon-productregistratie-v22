@@ -801,13 +801,39 @@ export default function ProductRegistrationApp() {
     stopQrScanner()
 
     if (qrScanMode === "registration") {
-      // Find product by QR code
-      const foundProduct = products.find((p) => p.qrcode === code)
+      // Verbeterde QR code matching
+      console.log("🔍 Searching for product with QR code:", code)
+      console.log(
+        "📦 Available products:",
+        products.map((p) => ({ name: p.name, qrcode: p.qrcode })),
+      )
+
+      // Zoek exact match eerst
+      let foundProduct = products.find((p) => p.qrcode === code)
+
+      // Als geen exacte match, probeer case-insensitive
+      if (!foundProduct) {
+        foundProduct = products.find((p) => p.qrcode && p.qrcode.toLowerCase() === code.toLowerCase())
+      }
+
+      // Als nog steeds niet gevonden, probeer partial match
+      if (!foundProduct && code.length > 3) {
+        foundProduct = products.find(
+          (p) =>
+            p.qrcode &&
+            (p.qrcode.toLowerCase().includes(code.toLowerCase()) ||
+              code.toLowerCase().includes(p.qrcode.toLowerCase())),
+        )
+      }
+
+      console.log("🎯 Found product:", foundProduct)
+
       if (foundProduct) {
+        console.log("✅ Product match found:", foundProduct.name)
         setSelectedProduct(foundProduct.name)
         setProductSearchQuery(foundProduct.name)
 
-        // FIXED: Automatically select the product's category
+        // Auto-select category if available
         if (foundProduct.categoryId) {
           setSelectedCategory(foundProduct.categoryId)
           console.log("🗂️ Auto-selected category:", foundProduct.categoryId)
@@ -816,12 +842,16 @@ export default function ProductRegistrationApp() {
         setImportMessage(`✅ Product gevonden: ${foundProduct.name}`)
         setTimeout(() => setImportMessage(""), 3000)
       } else {
+        console.log("❌ No product found for QR code:", code)
+        // Toon de QR code in het zoekveld voor handmatige selectie
         setProductSearchQuery(code)
         setImportError(`❌ Geen product gevonden voor QR code: ${code}`)
-        setTimeout(() => setImportError(""), 3000)
+        setTimeout(() => setImportError(""), 5000)
       }
     } else if (qrScanMode === "product-management") {
       setNewProductQrCode(code)
+      setImportMessage(`✅ QR code gescand: ${code}`)
+      setTimeout(() => setImportMessage(""), 3000)
     }
   }
 
