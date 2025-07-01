@@ -1154,25 +1154,73 @@ export default function ProductRegistrationApp() {
       return
     }
 
-    const printWindow = window.open("", "_blank")
-    if (!printWindow) {
-      alert("Popup blocker is actief. Sta popups toe om af te drukken.")
-      return
-    }
+    // Create PDF content
+    let pdfContent = `
+    <html>
+    <head>
+      <title>QR Codes - Alle Producten</title>
+      <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .header { text-align: center; margin-bottom: 30px; }
+        .qr-item { 
+          display: inline-block; 
+          margin: 15px; 
+          text-align: center; 
+          page-break-inside: avoid;
+          vertical-align: top;
+          width: 200px;
+        }
+        .qr-image { margin-bottom: 10px; }
+        .product-name { font-weight: bold; font-size: 14px; margin-bottom: 5px; }
+        .qr-code { font-size: 12px; color: #666; }
+        @media print {
+          .qr-item { break-inside: avoid; }
+        }
+      </style>
+    </head>
+    <body>
+      <div class="header">
+        <h1>QR Codes - Alle Producten</h1>
+        <p>Gegenereerd op: ${new Date().toLocaleDateString("nl-NL")} om ${new Date().toLocaleTimeString("nl-NL")}</p>
+      </div>
+  `
 
-    printWindow.document.write("<html><head><title>QR Codes</title></head><body>")
     productsWithQRCodes.forEach((product) => {
-      printWindow.document.write(`
-          <div style="margin: 10px; text-align: center;">
-              <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${product.qrcode}" alt="${product.name}" style="margin-bottom: 5px;">
-              <p>${product.name}</p>
-          </div>
-      `)
+      pdfContent += `
+      <div class="qr-item">
+        <div class="qr-image">
+          <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(product.qrcode!)}" 
+               alt="${product.name}" 
+               style="width: 150px; height: 150px;">
+        </div>
+        <div class="product-name">${product.name}</div>
+        <div class="qr-code">QR Code: ${product.qrcode}</div>
+      </div>
+    `
     })
-    printWindow.document.write("</body></html>")
-    printWindow.document.close()
-    printWindow.print()
-    printWindow.onafterprint = () => printWindow.close()
+
+    pdfContent += `
+    </body>
+    </html>
+  `
+
+    // Create blob and open in new window for PDF generation
+    const blob = new Blob([pdfContent], { type: "text/html" })
+    const url = URL.createObjectURL(blob)
+    const newWindow = window.open(url, "_blank")
+
+    if (newWindow) {
+      newWindow.onload = () => {
+        // Small delay to ensure images are loaded
+        setTimeout(() => {
+          newWindow.print()
+          URL.revokeObjectURL(url)
+        }, 1000)
+      }
+    } else {
+      alert("Popup blocker is actief. Sta popups toe om PDF te genereren.")
+      URL.revokeObjectURL(url)
+    }
   }
 
   const printQRCode = (product: Product) => {
@@ -1181,30 +1229,81 @@ export default function ProductRegistrationApp() {
       return
     }
 
-    const printWindow = window.open("", "_blank")
-    if (!printWindow) {
-      alert("Popup blocker is actief. Sta popups toe om af te drukken.")
-      return
+    // Create PDF content
+    const pdfContent = `
+    <html>
+    <head>
+      <title>QR Code - ${product.name}</title>
+      <style>
+        body { 
+          font-family: Arial, sans-serif; 
+          margin: 40px; 
+          text-align: center;
+        }
+        .header { margin-bottom: 30px; }
+        .qr-container { 
+          display: inline-block;
+          padding: 20px;
+          border: 2px solid #ddd;
+          border-radius: 10px;
+          background-color: #fafafa;
+        }
+        .qr-image { margin-bottom: 20px; }
+        .product-name { 
+          font-size: 18px; 
+          font-weight: bold; 
+          margin-bottom: 10px;
+          color: #333;
+        }
+        .qr-code { 
+          font-size: 14px; 
+          color: #666;
+          font-family: monospace;
+        }
+        .date { 
+          font-size: 12px; 
+          color: #999; 
+          margin-top: 20px;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="header">
+        <h1>QR Code - ${product.name}</h1>
+      </div>
+      <div class="qr-container">
+        <div class="qr-image">
+          <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(product.qrcode)}" 
+               alt="${product.name}" 
+               style="width: 200px; height: 200px;">
+        </div>
+        <div class="product-name">${product.name}</div>
+        <div class="qr-code">QR Code: ${product.qrcode}</div>
+      </div>
+      <div class="date">
+        Gegenereerd op: ${new Date().toLocaleDateString("nl-NL")} om ${new Date().toLocaleTimeString("nl-NL")}
+      </div>
+    </body>
+    </html>
+  `
+
+    // Create blob and open in new window for PDF generation
+    const blob = new Blob([pdfContent], { type: "text/html" })
+    const url = URL.createObjectURL(blob)
+    const newWindow = window.open(url, "_blank")
+
+    if (newWindow) {
+      newWindow.onload = () => {
+        // Small delay to ensure images are loaded
+        setTimeout(() => {
+          newWindow.print()
+          URL.revokeObjectURL(url)
+        }, 1000)
+      }
+    } else {
+      alert("Popup blocker is actief. Sta popups toe om PDF te genereren.")
+      URL.revokeObjectURL(url)
     }
-
-    printWindow.document.write(`
-          <html>
-          <head>
-              <title>QR Code - ${product.name}</title>
-          </head>
-          <body>
-              <div style="margin: 20px; text-align: center;">
-                  <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${product.qrcode}" alt="${product.name}" style="margin-bottom: 10px;">
-                  <p style="font-size: 16px; font-weight: bold;">${product.name}</p>
-                  <p style="font-size: 14px;">QR Code: ${product.qrcode}</p>
-              </div>
-          </body>
-          </html>
-      `)
-
-    printWindow.document.close()
-    printWindow.print()
-    printWindow.onafterprint = () => printWindow.close()
   }
 
   const generateQRCode = async (product: Product) => {
