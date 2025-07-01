@@ -189,6 +189,8 @@ export default function ProductRegistrationApp() {
   const [badgeId, setBadgeId] = useState("")
   const [badgeError, setBadgeError] = useState("")
 
+  const [showLabelPrinterInstructions, setShowLabelPrinterInstructions] = useState(false)
+
   // Helper function to escape CSV values
   const escapeCSVValue = (value: string): string => {
     if (value.includes(",") || value.includes('"') || value.includes("\n")) {
@@ -1394,27 +1396,46 @@ export default function ProductRegistrationApp() {
   }
 
   const exportQRCodesForLabelPrinter = () => {
+    const productsWithQRCodes = products.filter((p) => p.qrcode)
+
+    if (productsWithQRCodes.length === 0) {
+      alert("Geen producten met QR codes gevonden")
+      return
+    }
+
+    // Create enhanced CSV for label printers
     const csvRows = []
-    const header = ["Productnaam", "QR Code"]
+    const header = ["Product_Naam", "QR_Code", "QR_URL", "Categorie", "Print_Label"]
     csvRows.push(header.join(","))
 
-    for (const product of products) {
-      if (product.qrcode) {
-        const values = [product.name, product.qrcode]
-        csvRows.push(values.join(","))
-      }
+    for (const product of productsWithQRCodes) {
+      const categoryName = product.categoryId ? categories.find((c) => c.id === product.categoryId)?.name || "" : ""
+      const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(product.qrcode!)}`
+
+      const values = [
+        escapeCSVValue(product.name),
+        escapeCSVValue(product.qrcode!),
+        escapeCSVValue(qrImageUrl),
+        escapeCSVValue(categoryName),
+        escapeCSVValue(`${product.name} - ${product.qrcode}`),
+      ]
+      csvRows.push(values.join(","))
     }
 
     const csvString = csvRows.join("\n")
 
-    const blob = new Blob([csvString], { type: "text/csv" })
+    const blob = new Blob([csvString], { type: "text/csv;charset=utf-8;" })
     const url = window.URL.createObjectURL(blob)
     const a = document.createElement("a")
     a.setAttribute("href", url)
-    a.setAttribute("download", "qr_codes.csv")
+    a.setAttribute("download", "qr_codes_labelprinter.csv")
     document.body.appendChild(a)
     a.click()
     document.body.removeChild(a)
+    window.URL.revokeObjectURL(url)
+
+    // Show instructions dialog
+    setShowLabelPrinterInstructions(true)
   }
 
   const handleAttachmentUpload = async (product: Product, e: any) => {
@@ -2041,6 +2062,11 @@ export default function ProductRegistrationApp() {
     return Object.entries(productCounts)
       .sort(([, a], [, b]) => b - a)
       .slice(0, 5)
+      .map(([product, count], index) => ({
+        product,
+        count,
+        color: ["#ff6b6b", "#4ecdc4", "#45b7d1", "#96ceb4", "#feca57"][index % 5],
+      }))
   }
 
   const getTopLocations = () => {
@@ -2055,27 +2081,6 @@ export default function ProductRegistrationApp() {
     return Object.entries(locationCounts)
       .sort(([, a], [, b]) => b - a)
       .slice(0, 5)
-  }
-
-  const getProductChartData = () => {
-    const productCounts = registrations.reduce(
-      (acc, reg) => {
-        acc[reg.product] = (acc[reg.product] || 0) + 1
-        return acc
-      },
-      {} as Record<string, number>,
-    )
-
-    const colors = ["#ff6b6b", "#4ecdc4", "#45b7d1", "#96ceb4", "#feca57", "#ff9ff3", "#54a0ff", "#5f27cd"]
-
-    return Object.entries(productCounts)
-      .sort(([, a], [, b]) => b - a)
-      .slice(0, 5)
-      .map(([product, count], index) => ({
-        product,
-        count,
-        color: colors[index % colors.length],
-      }))
   }
 
   // Function to get current user's role
@@ -3534,11 +3539,9 @@ export default function ProductRegistrationApp() {
                       </CardHeader>
                       <CardContent>
                         <div className="space-y-3">
-                          {getTopProducts().map(([product, count], index) => {
-                            const maxCount = Math.max(...getTopProducts().map(([, c]) => c))
+                          {getTopProducts().map(({ product, count, color }, index) => {
+                            const maxCount = Math.max(...getTopProducts().map((item) => item.count))
                             const percentage = (count / maxCount) * 100
-                            const colors = ["#ff6b6b", "#4ecdc4", "#45b7d1", "#96ceb4", "#feca57"]
-                            const color = colors[index % colors.length]
 
                             return (
                               <div key={product} className="flex items-center justify-between">
@@ -3817,6 +3820,173 @@ export default function ProductRegistrationApp() {
                 className="flex-1 text-red-600 border-red-200 hover:bg-red-50 bg-transparent"
               >
                 ❌ Annuleren
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Label Printer Instructions Dialog */}
+      <Dialog open={showLabelPrinterInstructions} onOpenChange={setShowLabelPrinterInstructions}>
+        <DialogContent className="sm:max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">🏷️ Labelprinter Instructies</DialogTitle>
+            <DialogDescription>
+              Instructies voor het printen van QR code labels met verschillende labelprinters
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-6">
+            {/* ATP-300 Pro Altec Instructions */}
+            <div className="border rounded-lg p-4 bg-blue-50">
+              <h3 className="font-semibold text-lg mb-3 text-blue-800">🖨️ ATP-300 Pro van Altec</h3>
+              <div className="space-y-3 text-sm">
+                <div>
+                  <h4 className="font-medium mb-2">📋 Stap 1: Software Voorbereiding</h4>
+                  <ul className="list-disc list-inside space-y-1 text-gray-700 ml-4">
+                    <li>Open de Altec Label Designer software</li>
+                    <li>Maak een nieuw label ontwerp (aanbevolen: 50x30mm of 40x25mm)</li>
+                    <li>Voeg een QR code element toe aan het label</li>
+                    <li>Voeg een tekst element toe voor de productnaam</li>
+                  </ul>
+                </div>
+
+                <div>
+                  <h4 className="font-medium mb-2">📊 Stap 2: CSV Import</h4>
+                  <ul className="list-disc list-inside space-y-1 text-gray-700 ml-4">
+                    <li>Ga naar "Data" → "Import CSV" in de software</li>
+                    <li>
+                      Selecteer het gedownloade bestand:{" "}
+                      <code className="bg-gray-200 px-1 rounded">qr_codes_labelprinter.csv</code>
+                    </li>
+                    <li>
+                      Koppel de kolommen:
+                      <ul className="list-disc list-inside ml-4 mt-1">
+                        <li>
+                          <strong>QR_Code</strong> → QR code element
+                        </li>
+                        <li>
+                          <strong>Product_Naam</strong> → Tekst element
+                        </li>
+                        <li>
+                          <strong>Categorie</strong> → Extra tekst (optioneel)
+                        </li>
+                      </ul>
+                    </li>
+                  </ul>
+                </div>
+
+                <div>
+                  <h4 className="font-medium mb-2">🖨️ Stap 3: Printen</h4>
+                  <ul className="list-disc list-inside space-y-1 text-gray-700 ml-4">
+                    <li>Controleer de printer instellingen (ATP-300 Pro)</li>
+                    <li>Selecteer het juiste label formaat</li>
+                    <li>Klik op "Print All" om alle labels te printen</li>
+                    <li>Test eerst met 1 label voordat je alle labels print</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            {/* Generic Label Printer Instructions */}
+            <div className="border rounded-lg p-4 bg-green-50">
+              <h3 className="font-semibold text-lg mb-3 text-green-800">🏷️ Algemene Labelprinter Instructies</h3>
+              <div className="space-y-3 text-sm">
+                <div>
+                  <h4 className="font-medium mb-2">📋 Voor Brother, Dymo, Zebra printers:</h4>
+                  <ul className="list-disc list-inside space-y-1 text-gray-700 ml-4">
+                    <li>
+                      Gebruik de <strong>QR_URL</strong> kolom voor directe QR code afbeeldingen
+                    </li>
+                    <li>
+                      Gebruik de <strong>QR_Code</strong> kolom voor QR code data
+                    </li>
+                    <li>
+                      Gebruik de <strong>Print_Label</strong> kolom voor complete label tekst
+                    </li>
+                  </ul>
+                </div>
+
+                <div>
+                  <h4 className="font-medium mb-2">💡 Tips:</h4>
+                  <ul className="list-disc list-inside space-y-1 text-gray-700 ml-4">
+                    <li>QR code grootte: minimaal 15x15mm voor goede scanbaarheid</li>
+                    <li>Gebruik hoge kwaliteit (200 DPI of hoger)</li>
+                    <li>Test altijd eerst met één label</li>
+                    <li>Zorg voor voldoende contrast (zwart op wit)</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            {/* CSV Format Explanation */}
+            <div className="border rounded-lg p-4 bg-amber-50">
+              <h3 className="font-semibold text-lg mb-3 text-amber-800">📊 CSV Bestand Uitleg</h3>
+              <div className="space-y-2 text-sm">
+                <p>
+                  <strong>Product_Naam:</strong> Volledige productnaam
+                </p>
+                <p>
+                  <strong>QR_Code:</strong> QR code data (bijv. IFLS001)
+                </p>
+                <p>
+                  <strong>QR_URL:</strong> Directe link naar QR code afbeelding
+                </p>
+                <p>
+                  <strong>Categorie:</strong> Product categorie
+                </p>
+                <p>
+                  <strong>Print_Label:</strong> Voorgeformatteerde label tekst
+                </p>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-4 border-t">
+              <Button
+                variant="outline"
+                onClick={() => setShowLabelPrinterInstructions(false)}
+                className="bg-transparent"
+              >
+                Sluiten
+              </Button>
+              <Button
+                onClick={() => {
+                  // Download instructions as PDF
+                  const instructionsContent = `
+                    LABELPRINTER INSTRUCTIES - QR CODES
+                    
+                    ATP-300 Pro van Altec:
+                    1. Open Altec Label Designer software
+                    2. Maak nieuw label ontwerp (50x30mm aanbevolen)
+                    3. Voeg QR code en tekst elementen toe
+                    4. Import CSV: Data → Import CSV
+                    5. Koppel kolommen: QR_Code → QR element, Product_Naam → Tekst
+                    6. Test met 1 label, dan Print All
+                    
+                    Algemene Tips:
+                    - QR code minimaal 15x15mm
+                    - 200 DPI of hoger
+                    - Zwart op wit voor beste contrast
+                    - Test altijd eerst
+                    
+                    CSV Kolommen:
+                    - Product_Naam: Volledige naam
+                    - QR_Code: QR data
+                    - QR_URL: Directe QR afbeelding link
+                    - Categorie: Product categorie
+                    - Print_Label: Voorgeformatteerde tekst
+                  `
+
+                  const blob = new Blob([instructionsContent], { type: "text/plain" })
+                  const url = window.URL.createObjectURL(blob)
+                  const a = document.createElement("a")
+                  a.href = url
+                  a.download = "labelprinter_instructies.txt"
+                  a.click()
+                  window.URL.revokeObjectURL(url)
+                }}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                📄 Download Instructies
               </Button>
             </div>
           </div>
