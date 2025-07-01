@@ -3636,6 +3636,62 @@ export default function ProductRegistrationApp() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* QR Scanner Dialog */}
+      <Dialog open={showQrScanner} onOpenChange={setShowQrScanner}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <QrCode className="h-5 w-5" />
+              QR Code Scanner
+            </DialogTitle>
+            <DialogDescription>Scan een QR code of voer handmatig in</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="flex justify-center">
+              <div className="w-16 h-16 bg-blue-100 rounded-lg flex items-center justify-center">
+                <QrCode className="h-8 w-8 text-blue-600" />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="qr-input">QR Code</Label>
+              <Input
+                id="qr-input"
+                ref={manualInputRef}
+                placeholder="Scan of typ QR code..."
+                value={qrScanResult}
+                onChange={(e) => setQrScanResult(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && qrScanResult.trim()) {
+                    handleQrCodeDetected(qrScanResult.trim())
+                  }
+                }}
+                className="font-mono"
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button
+                onClick={() => {
+                  if (qrScanResult.trim()) {
+                    handleQrCodeDetected(qrScanResult.trim())
+                  }
+                }}
+                disabled={!qrScanResult.trim()}
+                className="flex-1 bg-green-600 hover:bg-green-700"
+              >
+                ✅ Bevestigen
+              </Button>
+              <Button
+                variant="outline"
+                onClick={stopQrScanner}
+                className="flex-1 text-red-600 border-red-200 hover:bg-red-50 bg-transparent"
+              >
+                ❌ Annuleren
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
